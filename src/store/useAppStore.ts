@@ -144,12 +144,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     const { renderResult, contentSource, content, renderStyle, history } = get();
     if (!renderResult || !contentSource) return;
 
-    const existingIndex = history.findIndex((item) => 
-      item.contentSource === contentSource && item.renderStyle === renderStyle
-    );
+    const generateTitle = (): string => {
+      if (contentSource === 'manual-input') {
+        const cleanContent = content.replace(/<[^>]*>/g, '').replace(/[#*`_\[\]()]/g, '').trim();
+        const firstLine = cleanContent.split('\n').find((line) => line.trim().length > 0) || '';
+        const snippet = firstLine.substring(0, 30).trim();
+        const count = history.filter((h) => h.contentSource === 'manual-input').length + 1;
+        return snippet ? `粘贴 #${count}: ${snippet}` : `粘贴内容 #${count}`;
+      }
+      const count = history.filter((h) => h.contentSource === contentSource).length + 1;
+      return count > 1 ? `${contentSource} (#${count})` : contentSource;
+    };
 
     const newItem: HistoryItem = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: generateTitle(),
       contentSource,
       content,
       renderStyle,
@@ -161,18 +170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       timestamp: Date.now(),
     };
 
-    let newHistory: HistoryItem[];
-    if (existingIndex >= 0) {
-      newHistory = [
-        newItem,
-        ...history.slice(0, existingIndex),
-        ...history.slice(existingIndex + 1),
-      ];
-    } else {
-      newHistory = [newItem, ...history];
-    }
-
-    newHistory = newHistory.slice(0, MAX_HISTORY_ITEMS);
+    const newHistory = [newItem, ...history].slice(0, MAX_HISTORY_ITEMS);
     set({ history: newHistory });
     saveHistoryToStorage(newHistory);
   },

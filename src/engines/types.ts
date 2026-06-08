@@ -33,6 +33,7 @@ export interface RenderResult {
 
 export interface HistoryItem {
   id: string;
+  title: string;
   contentSource: string;
   content: string;
   renderStyle: RenderStyle;

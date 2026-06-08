@@ -18,9 +18,9 @@ const formatTime = (timestamp: number): string => {
   return date.toLocaleDateString('zh-CN');
 };
 
-const truncateSource = (source: string, maxLen: number = 50): string => {
-  if (source.length <= maxLen) return source;
-  return source.substring(0, maxLen - 3) + '...';
+const truncateText = (text: string, maxLen: number = 50): string => {
+  if (text.length <= maxLen) return text;
+  return text.substring(0, maxLen - 3) + '...';
 };
 
 export function HistoryPanel() {
@@ -101,8 +101,8 @@ export function HistoryPanel() {
                     >
                       {item.renderStyle}
                     </span>
-                    <span className="truncate" title={item.contentSource}>
-                      {truncateSource(item.contentSource)}
+                    <span className="truncate" title={item.title}>
+                      {truncateText(item.title)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 mt-1 text-xs terminal-dim">
