@@ -42,11 +42,31 @@ const createEmptyResult = (): RenderResult => ({
   linkMap: new Map(),
 });
 
+const migrateHistoryItem = (item: any, index: number): HistoryItem => {
+  if (!item.title) {
+    if (item.contentSource === 'manual-input') {
+      const cleanContent = (item.content || '').replace(/<[^>]*>/g, '').replace(/[#*`_\[\]()]/g, '').trim();
+      const firstLine = cleanContent.split('\n').find((line: string) => line.trim().length > 0) || '';
+      const snippet = firstLine.substring(0, 30).trim();
+      item.title = snippet ? `粘贴 #${index + 1}: ${snippet}` : `粘贴内容 #${index + 1}`;
+    } else {
+      item.title = item.contentSource || `历史记录 #${index + 1}`;
+    }
+  }
+  return item as HistoryItem;
+};
+
 const loadHistoryFromStorage = (): HistoryItem[] => {
   try {
     const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      const migrated = parsed.map((item: any, index: number) => migrateHistoryItem(item, index));
+      const needsSave = parsed.some((item: any) => !item.title);
+      if (needsSave) {
+        saveHistoryToStorage(migrated);
+      }
+      return migrated;
     }
   } catch {
     console.error('Failed to load history from localStorage');

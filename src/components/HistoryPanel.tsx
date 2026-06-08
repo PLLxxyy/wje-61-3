@@ -23,6 +23,19 @@ const truncateText = (text: string, maxLen: number = 50): string => {
   return text.substring(0, maxLen - 3) + '...';
 };
 
+const getDisplayTitle = (item: HistoryItem, index: number): string => {
+  if (item.title) {
+    return item.title;
+  }
+  if (item.contentSource === 'manual-input') {
+    const cleanContent = (item.content || '').replace(/<[^>]*>/g, '').replace(/[#*`_\[\]()]/g, '').trim();
+    const firstLine = cleanContent.split('\n').find((line) => line.trim().length > 0) || '';
+    const snippet = firstLine.substring(0, 30).trim();
+    return snippet ? `粘贴 #${index + 1}: ${snippet}` : `粘贴内容 #${index + 1}`;
+  }
+  return item.contentSource || `历史记录 #${index + 1}`;
+};
+
 export function HistoryPanel() {
   const { 
     history, 
@@ -87,7 +100,9 @@ export function HistoryPanel() {
               清空全部
             </button>
           </div>
-          {history.map((item) => (
+          {history.map((item, index) => {
+            const displayTitle = getDisplayTitle(item, index);
+            return (
             <div
               key={item.id}
               className="p-3 border border-current terminal-border hover:bg-opacity-5 hover:bg-current cursor-pointer group transition-all"
@@ -101,8 +116,8 @@ export function HistoryPanel() {
                     >
                       {item.renderStyle}
                     </span>
-                    <span className="truncate" title={item.title}>
-                      {truncateText(item.title)}
+                    <span className="truncate" title={displayTitle}>
+                      {truncateText(displayTitle)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 mt-1 text-xs terminal-dim">
@@ -122,7 +137,8 @@ export function HistoryPanel() {
                 </button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
