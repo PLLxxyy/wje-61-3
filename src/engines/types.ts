@@ -31,6 +31,19 @@ export interface RenderResult {
   linkMap: Map<number, string>;
 }
 
+export interface HistoryItem {
+  id: string;
+  contentSource: string;
+  content: string;
+  renderStyle: RenderStyle;
+  renderResult: {
+    text: string;
+    lines: string[];
+    linkMap: Array<[number, string]>;
+  };
+  timestamp: number;
+}
+
 export const TERMINAL_THEMES: Record<TerminalTheme, ThemeConfig> = {
   green: {
     name: '绿磷光',

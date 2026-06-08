@@ -1,6 +1,7 @@
 import { TerminalFrame } from '@/components/TerminalFrame';
 import { InputPanel } from '@/components/InputPanel';
 import { ControlPanel } from '@/components/ControlPanel';
+import { HistoryPanel } from '@/components/HistoryPanel';
 import { RenderView } from '@/components/RenderView';
 
 export default function Home() {
@@ -20,6 +21,7 @@ export default function Home() {
           <div className="flex flex-col h-[calc(100vh-12rem)]">
             <InputPanel />
             <ControlPanel />
+            <HistoryPanel />
             <RenderView />
           </div>
         </TerminalFrame>

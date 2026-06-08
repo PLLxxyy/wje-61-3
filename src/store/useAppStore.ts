@@ -1,8 +1,11 @@
 import { create } from 'zustand';
-import type { RenderStyle, TerminalTheme, RenderResult, ContentNode } from '../engines/types';
+import type { RenderStyle, TerminalTheme, RenderResult, ContentNode, HistoryItem } from '../engines/types';
 import { parseContent } from '../engines/parser';
 import { renderBBS } from '../engines/bbsRenderer';
 import { renderGopher } from '../engines/gopherRenderer';
+
+const HISTORY_STORAGE_KEY = 'retro-renderer-history';
+const MAX_HISTORY_ITEMS = 10;
 
 interface AppState {
   inputMode: 'url' | 'text';
@@ -15,6 +18,7 @@ interface AppState {
   loading: boolean;
   parsedNodes: ContentNode[];
   renderResult: RenderResult | null;
+  history: HistoryItem[];
   
   setInputMode: (mode: 'url' | 'text') => void;
   setRenderStyle: (style: RenderStyle) => void;
@@ -25,6 +29,11 @@ interface AppState {
   setLoading: (loading: boolean) => void;
   render: () => void;
   clearAll: () => void;
+  loadHistory: () => void;
+  addToHistory: () => void;
+  loadFromHistory: (id: string) => void;
+  deleteHistoryItem: (id: string) => void;
+  clearHistory: () => void;
 }
 
 const createEmptyResult = (): RenderResult => ({
@@ -32,6 +41,26 @@ const createEmptyResult = (): RenderResult => ({
   lines: [],
   linkMap: new Map(),
 });
+
+const loadHistoryFromStorage = (): HistoryItem[] => {
+  try {
+    const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    console.error('Failed to load history from localStorage');
+  }
+  return [];
+};
+
+const saveHistoryToStorage = (history: HistoryItem[]) => {
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+  } catch {
+    console.error('Failed to save history to localStorage');
+  }
+};
 
 export const useAppStore = create<AppState>((set, get) => ({
   inputMode: 'url',
@@ -44,6 +73,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   loading: false,
   parsedNodes: [],
   renderResult: null,
+  history: [],
 
   setInputMode: (mode) => set({ inputMode: mode }),
   setRenderStyle: (style) => {
@@ -89,6 +119,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         result = renderGopher(parsedNodes);
       }
       set({ renderResult: result, error: null });
+      get().addToHistory();
     } catch (err) {
       set({ 
         error: err instanceof Error ? err.message : '渲染失败',
@@ -104,4 +135,83 @@ export const useAppStore = create<AppState>((set, get) => ({
     parsedNodes: [],
     renderResult: null,
   }),
+
+  loadHistory: () => {
+    set({ history: loadHistoryFromStorage() });
+  },
+
+  addToHistory: () => {
+    const { renderResult, contentSource, content, renderStyle, history } = get();
+    if (!renderResult || !contentSource) return;
+
+    const existingIndex = history.findIndex((item) => 
+      item.contentSource === contentSource && item.renderStyle === renderStyle
+    );
+
+    const newItem: HistoryItem = {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      contentSource,
+      content,
+      renderStyle,
+      renderResult: {
+        text: renderResult.text,
+        lines: renderResult.lines,
+        linkMap: Array.from(renderResult.linkMap.entries()),
+      },
+      timestamp: Date.now(),
+    };
+
+    let newHistory: HistoryItem[];
+    if (existingIndex >= 0) {
+      newHistory = [
+        newItem,
+        ...history.slice(0, existingIndex),
+        ...history.slice(existingIndex + 1),
+      ];
+    } else {
+      newHistory = [newItem, ...history];
+    }
+
+    newHistory = newHistory.slice(0, MAX_HISTORY_ITEMS);
+    set({ history: newHistory });
+    saveHistoryToStorage(newHistory);
+  },
+
+  loadFromHistory: (id: string) => {
+    const { history } = get();
+    const item = history.find((h) => h.id === id);
+    if (!item) return;
+
+    try {
+      const nodes = parseContent(item.content);
+      const restoredResult: RenderResult = {
+        text: item.renderResult.text,
+        lines: item.renderResult.lines,
+        linkMap: new Map(item.renderResult.linkMap),
+      };
+      set({
+        content: item.content,
+        contentSource: item.contentSource,
+        renderStyle: item.renderStyle,
+        parsedNodes: nodes,
+        renderResult: restoredResult,
+        error: null,
+      });
+    } catch (err) {
+      set({ 
+        error: err instanceof Error ? err.message : '加载历史记录失败',
+      });
+    }
+  },
+
+  deleteHistoryItem: (id: string) => {
+    const newHistory = get().history.filter((h) => h.id !== id);
+    set({ history: newHistory });
+    saveHistoryToStorage(newHistory);
+  },
+
+  clearHistory: () => {
+    set({ history: [] });
+    saveHistoryToStorage([]);
+  },
 }));
